@@ -1,0 +1,61 @@
+name: Build Free Grind iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Free Grind 0.5.4 development
+        uses: actions/checkout@v7
+        with:
+          repository: imaoreo/free-grind
+          ref: development
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Configure Rust for iOS
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add aarch64-apple-ios
+          rustc --version
+          cargo --version
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Show Xcode environment
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Build unsigned IPA
+        run: bun run build:ios:ipa
+
+      - name: Verify IPA
+        run: |
+          ls -lh dist/ios/
+          test -f dist/ios/free-grind-unsigned.ipa
+
+      - name: Rename IPA
+        run: |
+          cp dist/ios/free-grind-unsigned.ipa \
+             dist/ios/free-grind-0.5.4-unsigned.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-grind-0.5.4-ios
+          path: dist/ios/free-grind-0.5.4-unsigned.ipa
+          if-no-files-found: error
